@@ -1,4 +1,12 @@
 options:
+  match-tuning-pods-only:
+    type: boolean
+    default: false
+    description: |
+      Call the pod mutator only for pods labelled
+      workload.viboo.cloud/katib-trial="true" in Katib-enabled namespaces.
+      Label every custom trial pod template before enabling this option.
+      The built-in trial templates include the label automatically.
   webhook-port:
     type: int
     default: 443

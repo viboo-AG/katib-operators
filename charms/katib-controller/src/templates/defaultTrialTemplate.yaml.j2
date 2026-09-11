@@ -9,6 +9,9 @@ data:
     kind: Job
     spec:
       template:
+        metadata:
+          labels:
+            workload.viboo.cloud/katib-trial: "true"
         spec:
           containers:
             - name: training-container
@@ -27,6 +30,9 @@ data:
     kind: Job
     spec:
       template:
+        metadata:
+          labels:
+            workload.viboo.cloud/katib-trial: "true"
         spec:
           containers:
             - name: training-container
@@ -48,6 +54,9 @@ data:
           replicas: 1
           restartPolicy: OnFailure
           template:
+            metadata:
+              labels:
+                workload.viboo.cloud/katib-trial: "true"
             spec:
               containers:
                 - name: pytorch
@@ -62,6 +71,9 @@ data:
           replicas: 2
           restartPolicy: OnFailure
           template:
+            metadata:
+              labels:
+                workload.viboo.cloud/katib-trial: "true"
             spec:
               containers:
                 - name: pytorch

@@ -262,6 +262,7 @@ class KatibControllerOperator(CharmBase):
                 "namespace": self._namespace,
                 "ca_bundle": b64encode(self._stored.ca.encode("ascii")).decode("utf-8"),
                 "webhookPort": KATIB_WEBHOOK_PORT,
+                "match_tuning_pods_only": self.config["match-tuning-pods-only"],
             }
         )
         return context_dict

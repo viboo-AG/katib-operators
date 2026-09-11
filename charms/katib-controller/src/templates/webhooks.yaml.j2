@@ -51,6 +51,7 @@ webhooks:
         resources:
           - experiments
   - name: mutator.pod.katib.kubeflow.org
+    failurePolicy: Fail
     sideEffects: None
     admissionReviewVersions:
       - v1
@@ -63,6 +64,11 @@ webhooks:
     namespaceSelector:
       matchLabels:
         katib.kubeflow.org/metrics-collector-injection: enabled
+{% if match_tuning_pods_only %}
+    objectSelector:
+      matchLabels:
+        workload.viboo.cloud/katib-trial: "true"
+{% endif %}
     matchConditions:
       - name: 'exclude-katib-controller'
         expression: 'request.userInfo.username != "system:serviceaccount:{{ namespace }}:{{ app_name }}"'

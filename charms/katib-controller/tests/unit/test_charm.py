@@ -6,6 +6,8 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+import yaml
+from jinja2 import Environment, StrictUndefined
 from ops.model import ActiveStatus, BlockedStatus, TooManyRelatedAppsError
 from ops.testing import Harness
 
@@ -30,6 +32,61 @@ EXPECTED_PEBBLE_LAYER = {
         }
     }
 }
+
+
+@pytest.mark.parametrize("enabled", [False, True])
+def test_tuning_pod_selector(
+    harness, mocked_lightkube_client, mocked_kubernetes_service_patch, enabled
+):
+    harness.begin()
+    harness.update_config({"match-tuning-pods-only": enabled})
+    context = harness.charm._kubernetes_manifests_context()
+    template = Environment(undefined=StrictUndefined).from_string(
+        Path("src/templates/webhooks.yaml.j2").read_text()
+    )
+    resources = list(yaml.safe_load_all(template.render(context)))
+    mutating = next(r for r in resources if r["kind"] == "MutatingWebhookConfiguration")
+    pod_webhook = next(
+        w for w in mutating["webhooks"] if w["name"] == "mutator.pod.katib.kubeflow.org"
+    )
+    assert pod_webhook["failurePolicy"] == "Fail"
+    assert pod_webhook["namespaceSelector"] == {
+        "matchLabels": {"katib.kubeflow.org/metrics-collector-injection": "enabled"}
+    }
+    assert pod_webhook["matchConditions"][0]["name"] == "exclude-katib-controller"
+    if enabled:
+        assert pod_webhook["objectSelector"] == {
+            "matchLabels": {"workload.viboo.cloud/katib-trial": "true"}
+        }
+    else:
+        assert "objectSelector" not in pod_webhook
+    for resource in resources:
+        for webhook in resource["webhooks"]:
+            if webhook["name"] != pod_webhook["name"]:
+                assert "objectSelector" not in webhook
+
+
+def test_builtin_trial_pods_are_labelled_before_admission(
+    harness, mocked_lightkube_client, mocked_kubernetes_service_patch
+):
+    harness.begin()
+    template = Environment(undefined=StrictUndefined).from_string(
+        Path("src/templates/defaultTrialTemplate.yaml.j2").read_text()
+    )
+    configmap = yaml.safe_load(template.render(harness.charm._kubernetes_manifests_context()))
+    pod_templates = []
+    for value in configmap["data"].values():
+        workload = yaml.safe_load(value)
+        if workload["kind"] == "Job":
+            pod_templates.append(workload["spec"]["template"])
+        else:
+            assert workload["kind"] == "PyTorchJob"
+            pod_templates.extend(
+                replica["template"] for replica in workload["spec"]["pytorchReplicaSpecs"].values()
+            )
+    assert len(pod_templates) == 4
+    for pod_template in pod_templates:
+        assert pod_template["metadata"]["labels"]["workload.viboo.cloud/katib-trial"] == "true"
 
 
 @pytest.fixture

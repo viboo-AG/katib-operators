@@ -1,0 +1,31 @@
+name: Viboo downstream CI
+
+on:
+  push:
+    branches:
+      - "fix/**"
+      - "release/**"
+
+permissions:
+  contents: read
+
+jobs:
+  lint-and-unit:
+    name: Lint and test Katib controller
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: python3 -m pipx install tox
+      - name: Lint
+        run: tox -e lint
+      - name: Unit tests
+        run: tox -e katib-controller-unit
+
+  build:
+    name: Build Katib controller charm
+    uses: canonical/data-platform-workflows/.github/workflows/build_charm.yaml@v38.0.0
+    with:
+      path-to-charm-directory: charms/katib-controller
+      cache: true
